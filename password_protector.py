@@ -66,7 +66,7 @@ entry1.pack()
 label2 = tk.Label(window, text="Password", font="Arial")
 label2.pack()
 
-entry2 = tk.Entry(window)
+entry2 = tk.Entry(window, show="*")
 entry2.pack()
 
 button = tk.Button(window, text="Sign In", font="Arial", command=sign_in)
@@ -87,7 +87,7 @@ entry3.pack()
 label4 = tk.Label(log_window, text="Password", font="Arial")
 label4.pack()
 
-entry4 = tk.Entry(log_window)
+entry4 = tk.Entry(log_window, show="*")
 entry4.pack()
 
 button = tk.Button(log_window, text="Log In", font="Arial", command=log_in)
