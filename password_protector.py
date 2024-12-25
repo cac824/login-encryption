@@ -1,96 +1,159 @@
 import re
 import tkinter as tk
+from tkinter import ttk
+from zxcvbn import zxcvbn
 from cryptography.fernet import Fernet
+import os
 
-def encode_file(mode , file_name): # encrypts/decrypts files
-    global encrypted_content
-    key = Fernet.generate_key()  # generates key
-    fernet = Fernet(key)
-    if mode == "E": # checks if its encrypting
-        with open("filekey.key", "wb") as key_file:
+
+def encode_file(mode, file_name):  # encrypts/decrypts files
+    # checks if they key file exists
+    if not os.path.exists("filekey.key"):
+        key = Fernet.generate_key()  # generates key
+        with open("filekey.key", "wb") as key_file:  # writes the generated key into the file
             key_file.write(key)
-        with open("filekey.key","rb") as key_file:
-            key_file.read()
-        with open(file_name, "rb") as file:
+    else:
+        with open("filekey.key", "rb") as key_file:  # reads the saved key
+            key = key_file.read()
+
+    fernet = Fernet(key)  # creates the fernet instance with the key
+
+    if mode == "E":  # checks if it's encrypting
+        with open(file_name, "rb") as file:  # reads everything in the file and stores it into content
             content = file.read()
-        with open(file_name, "wb") as file:
+        with open(file_name, "wb") as file:  # encrypts the content and writes it into the encrypted_content
             encrypted_content = fernet.encrypt(content)  # encrypted file
             file.write(encrypted_content)
-    elif mode == "D": # checks if its decrypting
-        with open("filekey.key", "rb") as file:
-            key = file.read()
-        fernet = Fernet(key)
-        with open(file_name, "rb") as file:
+    elif mode == "D":  # checks if it's decrypting
+        with open(file_name, "rb") as file:  # reads the encrypted content and decrypts it
             encrypted_content = file.read()
             decrypted_content = fernet.decrypt(encrypted_content)
-        with open(file_name, "wb") as file:
+        with open(file_name, "wb") as file:  # writes the decrypted_content into the file
             file.write(decrypted_content)
+
+
 def sign_in():
+    # error_window
+    error_window = tk.Tk()
+    error_window.geometry("300x300")
+    error_window.title("Error")
+    error_label = tk.Label(error_window, text="Username in use, make another", font="Arial")
+    error_label.pack()
+
     user = entry1.get()
     password = entry2.get()
     if user and password:  # checks if both entries are filled out
-        with open("sign-in_info", "a") as file:
-            file.write(user + "\n")  # enters the user and password into the file
-            file.write(password + "\n")
-        entry1.delete(0, tk.END)  # clears the entries after all are filled out and submitted
-        entry2.delete(0, tk.END)
-        window.destroy()  # closes the sign in window after succesfully signing in and opens the log in window
-        encode_file("E", "sign-in_info")
+        with open("sign-in_info", "r") as file:
+            encode_file("D", "sign-in_info")
+            contents = file.read()
+            if re.search(user, contents):  # checks if the given username already exists
+                error_label.config(text="Username in use, make another")
+                return
+            encode_file("E", "sign-in_info")
+
+        result = zxcvbn(password)
+        if result['score'] >= 3:
+            with open("sign-in_info", "a") as file:
+                file.write(user + "\n")  # enters the user and password into the file
+                file.write(password + "\n")
+            encode_file("E", "sign-in_info")  # encrypt the file after writing
+            entry1.delete(0, tk.END)  # clears the entries after all are filled out and submitted
+            entry2.delete(0, tk.END)
+            window.destroy()  # closes the sign-in window
+        else:
+            error_label.config(text="Weak Password")
+    else:
+        error_label.config(text="Both entries need to be filled out")
+
 
 def log_in():
+    global error_label
     log_user = entry3.get()
     log_password = entry4.get()
     if log_user and log_password:  # checks if both entries are filled out
-        encode_file("D", "sign-in_info")
-        with open("sign-in_info", "r") as file:  # checks if the given user and password is in the file
+        encode_file("D", "sign-in_info")  # decrypt the file
+        with open("sign-in_info", "r") as file:  # checks if the given user and password are in the file
             contents = file.read()
-            if re.search(log_user, contents) and re.search(log_password, contents): # looks through the files and finds the user and password
+            if re.search(log_user, contents) and re.search(log_password, contents):  # looks for user and password
                 new_window = tk.Tk()
                 new_window.geometry("200x100")
                 new_window.title("Success!")
                 success_label = tk.Label(new_window, text="Login Successful!", font="Arial")
                 success_label.pack()
-    encode_file("E", "sign-in_info") # encrypts the file again after opening and decrypting it
+            else:
+                error_label.config(text="Wrong password or username")
+        encode_file("E", "sign-in_info")  # re-encrypt the file after checking
+    else:
+        error_label.config(text="Both entries need to be filled out")
 
 
-window = tk.Tk()  #   Sign in screen
+def handle_signin_click():
+    if is_signin_checked.get():
+        entry2.config(show="")
+    else:
+        entry2.config(show="*")
+
+
+def handle_login_click():
+    if is_login_checked.get():
+        entry4.config(show="")
+    else:
+        entry4.config(show="*")
+
+
+window = tk.Tk()  # Sign in screen
 window.geometry("500x500")
 window.title("Sign In")
+window.configure(padx=20, pady=20)
 
-label1 = tk.Label(window, text="Username", font="Arial")
+is_signin_checked = tk.IntVar()
+
+label1 = ttk.Label(window, text="Username", font="Arial")
 label1.pack()
 
-entry1 = tk.Entry(window)
+entry1 = ttk.Entry(window)
 entry1.pack()
 
-label2 = tk.Label(window, text="Password", font="Arial")
+label2 = ttk.Label(window, text="Password", font="Arial")
 label2.pack()
 
-entry2 = tk.Entry(window, show="*")
+check_button = ttk.Checkbutton(window, text="Show Password", variable=is_signin_checked, command=handle_signin_click)
+check_button.pack()
+
+entry2 = ttk.Entry(window, show="*")
 entry2.pack()
 
-button = tk.Button(window, text="Sign In", font="Arial", command=sign_in)
+button = ttk.Button(window, text="Sign In", command=sign_in)
 button.pack()
+
+button2 = ttk.Button(window, text="Already Signed In?", command=window.destroy)
+button2.pack()
 
 window.mainloop()
 
 log_window = tk.Tk()  # Log in screen
 log_window.geometry("500x500")
 log_window.title("Log In")
+log_window.configure(padx=20, pady=20)
 
-label3 = tk.Label(log_window, text="Username", font="Arial")
+is_login_checked = tk.IntVar()
+
+label3 = ttk.Label(log_window, text="Username", font="Arial")
 label3.pack()
 
-entry3 = tk.Entry(log_window)
+entry3 = ttk.Entry(log_window)
 entry3.pack()
 
-label4 = tk.Label(log_window, text="Password", font="Arial")
+label4 = ttk.Label(log_window, text="Password", font="Arial")
 label4.pack()
 
-entry4 = tk.Entry(log_window, show="*")
+check_button2 = ttk.Checkbutton(log_window, text="Show Password", variable=is_login_checked, command=handle_login_click)
+check_button2.pack()
+
+entry4 = ttk.Entry(log_window, show="*")
 entry4.pack()
 
-button = tk.Button(log_window, text="Log In", font="Arial", command=log_in)
+button = ttk.Button(log_window, text="Log In", command=log_in)
 button.pack()
 
 log_window.mainloop()
