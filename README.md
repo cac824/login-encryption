@@ -5,4 +5,4 @@ I used the **cryptography** library for the encryption portion of the program an
 
 **Improvements:**
 I want to improve the encryption system and use a hashing system or RSA 
-I also want to enhance the GUI and add a button called "Already Signed In?"
+
