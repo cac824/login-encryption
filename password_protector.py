@@ -1,7 +1,6 @@
 import re
 import tkinter as tk
 from tkinter import ttk
-
 from zxcvbn import zxcvbn
 from cryptography.fernet import Fernet
 import os
@@ -15,9 +14,9 @@ def check_keyfile():
 
 
 def encode_file(mode, file_name):  # encrypts/decrypts files
-    check_keyfile() # checks the existence of the key file
+    check_keyfile()  # checks the existence of the key file
 
-    with open("filekey.key", "rb") as key_file: # reads the key file
+    with open("filekey.key", "rb") as key_file:  # reads the key file
         key = key_file.read()
 
     fernet = Fernet(key)
@@ -36,20 +35,20 @@ def encode_file(mode, file_name):  # encrypts/decrypts files
             file.write(decrypted_content)
 
 
-def check_file():
+def check_file():  # checks file existence
     if not os.path.exists("sign-in_info"):
         with open("sign-in_info", "w") as file:
             file.write("")  # if the file doesnt exist it will create an empty file
         encode_file("E", "sign-in_info")  # encrypts the file
 
 
-def error(text):
-    # error_window
-    error_window = tk.Tk()
-    error_window.geometry("400x400")
-    error_window.title("Error")
-    error_label = tk.Label(error_window, text=text, font="Arial")
-    error_label.pack()
+def message(title, text):  # makes error and success messages
+    # message_window
+    message_window = tk.Tk()
+    message_window.geometry("400x400")
+    message_window.title(title)
+    message_label = tk.Label(message_window, text=text, font="Arial")
+    message_label.pack()
 
 
 def sign_in():
@@ -57,11 +56,11 @@ def sign_in():
     password = entry2.get()
     if user and password:  # checks if both entries are filled out
         with open("sign-in_info", "r") as file:
-            encode_file("D", "sign-in_info")
+            encode_file("D", "sign-in_info")  # decrypts file
             contents = file.read()
             if re.search(user, contents):  # checks if the given username already exists
-                error("Username in use, make another")
-                encode_file("E", "sign-in_info")
+                message("Error", "Username in use, make another")
+                encode_file("E", "sign-in_info")  # encrypts file
                 return
 
         result = zxcvbn(password)
@@ -74,10 +73,10 @@ def sign_in():
             entry2.delete(0, tk.END)
             window.destroy()  # closes the sign-in window
         else:
-            error("Weak Password\nAdd numbers and special characters")
-            encode_file("E", "sign-in_info")
+            message("Error", "Weak Password\nAdd numbers and special characters")
+            encode_file("E", "sign-in_info")  # encrypts file
     else:
-        error("Both entries need to be filled out")
+        message("Error", "Both entries need to be filled out")
 
 
 def log_in():
@@ -88,16 +87,14 @@ def log_in():
         with open("sign-in_info", "r") as file:  # checks if the given user and password are in the file
             contents = file.read()
             if re.search(log_user, contents) and re.search(log_password, contents):  # looks for user and password
-                new_window = tk.Tk()
-                new_window.geometry("200x100")
-                new_window.title("Success!")
-                success_label = tk.Label(new_window, text="Login Successful!", font="Arial")
-                success_label.pack()
+                message("Success", "Login Successful!")
+                entry3.delete(0, tk.END)
+                entry4.delete(0, tk.END)
             else:
-                error("Wrong username or password")
+                message("Error", "Wrong username or password")
         encode_file("E", "sign-in_info")  # re-encrypt the file after checking
     else:
-        error("Both entries need to be filled out")
+        message("Error", "Both entries need to be filled out")
 
 
 def handle_signin_click():
@@ -114,7 +111,7 @@ def handle_login_click():
         entry4.config(show="*")
 
 
-# calls the check functions to ensure existense of these files
+# calls the check functions to ensure existence of these files
 check_keyfile()
 check_file()
 
