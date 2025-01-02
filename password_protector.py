@@ -1,22 +1,26 @@
 import re
 import tkinter as tk
 from tkinter import ttk
+
 from zxcvbn import zxcvbn
 from cryptography.fernet import Fernet
 import os
 
 
-def encode_file(mode, file_name):  # encrypts/decrypts files
-    # checks if they key file exists
+def check_keyfile():
     if not os.path.exists("filekey.key"):
-        key = Fernet.generate_key()  # generates key
-        with open("filekey.key", "wb") as key_file:  # writes the generated key into the file
+        key = Fernet.generate_key()
+        with open("filekey.key", "wb") as key_file:
             key_file.write(key)
-    else:
-        with open("filekey.key", "rb") as key_file:  # reads the saved key
-            key = key_file.read()
 
-    fernet = Fernet(key)  # creates the fernet instance with the key
+
+def encode_file(mode, file_name):  # encrypts/decrypts files
+    check_keyfile() # checks the existence of the key file
+
+    with open("filekey.key", "rb") as key_file: # reads the key file
+        key = key_file.read()
+
+    fernet = Fernet(key)
 
     if mode == "E":  # checks if it's encrypting
         with open(file_name, "rb") as file:  # reads everything in the file and stores it into content
@@ -32,14 +36,23 @@ def encode_file(mode, file_name):  # encrypts/decrypts files
             file.write(decrypted_content)
 
 
-def sign_in():
+def check_file():
+    if not os.path.exists("sign-in_info"):
+        with open("sign-in_info", "w") as file:
+            file.write("")  # if the file doesnt exist it will create an empty file
+        encode_file("E", "sign-in_info")  # encrypts the file
+
+
+def error(text):
     # error_window
     error_window = tk.Tk()
-    error_window.geometry("300x300")
+    error_window.geometry("400x400")
     error_window.title("Error")
-    error_label = tk.Label(error_window, text="Username in use, make another", font="Arial")
+    error_label = tk.Label(error_window, text=text, font="Arial")
     error_label.pack()
 
+
+def sign_in():
     user = entry1.get()
     password = entry2.get()
     if user and password:  # checks if both entries are filled out
@@ -47,9 +60,9 @@ def sign_in():
             encode_file("D", "sign-in_info")
             contents = file.read()
             if re.search(user, contents):  # checks if the given username already exists
-                error_label.config(text="Username in use, make another")
+                error("Username in use, make another")
+                encode_file("E", "sign-in_info")
                 return
-            encode_file("E", "sign-in_info")
 
         result = zxcvbn(password)
         if result['score'] >= 3:
@@ -61,13 +74,13 @@ def sign_in():
             entry2.delete(0, tk.END)
             window.destroy()  # closes the sign-in window
         else:
-            error_label.config(text="Weak Password")
+            error("Weak Password\nAdd numbers and special characters")
+            encode_file("E", "sign-in_info")
     else:
-        error_label.config(text="Both entries need to be filled out")
+        error("Both entries need to be filled out")
 
 
 def log_in():
-    global error_label
     log_user = entry3.get()
     log_password = entry4.get()
     if log_user and log_password:  # checks if both entries are filled out
@@ -81,10 +94,10 @@ def log_in():
                 success_label = tk.Label(new_window, text="Login Successful!", font="Arial")
                 success_label.pack()
             else:
-                error_label.config(text="Wrong password or username")
+                error("Wrong username or password")
         encode_file("E", "sign-in_info")  # re-encrypt the file after checking
     else:
-        error_label.config(text="Both entries need to be filled out")
+        error("Both entries need to be filled out")
 
 
 def handle_signin_click():
@@ -100,6 +113,10 @@ def handle_login_click():
     else:
         entry4.config(show="*")
 
+
+# calls the check functions to ensure existense of these files
+check_keyfile()
+check_file()
 
 window = tk.Tk()  # Sign in screen
 window.geometry("500x500")
