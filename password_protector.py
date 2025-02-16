@@ -2,44 +2,24 @@ import re
 import tkinter as tk
 from tkinter import ttk
 from zxcvbn import zxcvbn
-from cryptography.fernet import Fernet
+import hashlib
 import os
 
 
-def check_keyfile():
-    if not os.path.exists("filekey.key"):
-        key = Fernet.generate_key()
-        with open("filekey.key", "wb") as key_file:
-            key_file.write(key)
-
-
-def encode_file(mode, file_name):  # encrypts/decrypts files
-    check_keyfile()  # checks the existence of the key file
-
-    with open("filekey.key", "rb") as key_file:  # reads the key file
-        key = key_file.read()
-
-    fernet = Fernet(key)
-
-    if mode == "E":  # checks if it's encrypting
-        with open(file_name, "rb") as file:  # reads everything in the file and stores it into content
-            content = file.read()
-        with open(file_name, "wb") as file:  # encrypts the content and writes it into the encrypted_content
-            encrypted_content = fernet.encrypt(content)  # encrypted file
-            file.write(encrypted_content)
-    elif mode == "D":  # checks if it's decrypting
-        with open(file_name, "rb") as file:  # reads the encrypted content and decrypts it
-            encrypted_content = file.read()
-            decrypted_content = fernet.decrypt(encrypted_content)
-        with open(file_name, "wb") as file:  # writes the decrypted_content into the file
-            file.write(decrypted_content)
-
-
-def check_file():  # checks file existence
-    if not os.path.exists("sign-in_info"):
-        with open("sign-in_info", "w") as file:
+def check_file(text):  # checks file existence
+    if not os.path.exists(text):
+        with open(text, "w") as file:
             file.write("")  # if the file doesnt exist it will create an empty file
-        encode_file("E", "sign-in_info")  # encrypts the file
+
+
+def encode_file(text):  # encrypts/decrypts files
+    check_file("password")
+    check_file("user")
+
+    encoded_string = text.encode("utf-8")  # Encode string to bytes
+    hash_object = hashlib.sha256()  # Create hash object
+    hash_object.update(encoded_string)  # Update hash object with encoded string
+    return hash_object.hexdigest()  # Return the hex digest of the hash
 
 
 def message(title, text):  # makes error and success messages
@@ -54,27 +34,25 @@ def message(title, text):  # makes error and success messages
 def sign_in():
     user = entry1.get()
     password = entry2.get()
+    encode_file(user)
+    encode_file(password)
     if user and password:  # checks if both entries are filled out
-        with open("sign-in_info", "r") as file:
-            encode_file("D", "sign-in_info")  # decrypts file
-            contents = file.read()
-            if re.search(user, contents):  # checks if the given username already exists
+        with open("user", "r") as file:
+            if encode_file(user) in file:  # checks if the given username already exists
                 message("Error", "Username in use, make another")
-                encode_file("E", "sign-in_info")  # encrypts file
                 return
 
         result = zxcvbn(password)
         if result['score'] >= 3:
-            with open("sign-in_info", "a") as file:
-                file.write(user + "\n")  # enters the user and password into the file
-                file.write(password + "\n")
-            encode_file("E", "sign-in_info")  # encrypt the file after writing
+            with open("user", "a") as file:
+                file.write(encode_file(user) + "\n")  # enters the user into the file
+            with open("password", "a") as file:
+                file.write(encode_file(password) + "\n")
             entry1.delete(0, tk.END)  # clears the entries after all are filled out and submitted
             entry2.delete(0, tk.END)
             window.destroy()  # closes the sign-in window
         else:
             message("Error", "Weak Password\nAdd numbers and special characters")
-            encode_file("E", "sign-in_info")  # encrypts file
     else:
         message("Error", "Both entries need to be filled out")
 
@@ -83,16 +61,17 @@ def log_in():
     log_user = entry3.get()
     log_password = entry4.get()
     if log_user and log_password:  # checks if both entries are filled out
-        encode_file("D", "sign-in_info")  # decrypt the file
-        with open("sign-in_info", "r") as file:  # checks if the given user and password are in the file
-            contents = file.read()
-            if re.search(log_user, contents) and re.search(log_password, contents):  # looks for user and password
-                message("Success", "Login Successful!")
-                entry3.delete(0, tk.END)
-                entry4.delete(0, tk.END)
-            else:
-                message("Error", "Wrong username or password")
-        encode_file("E", "sign-in_info")  # re-encrypt the file after checking
+        with open("user", "r") as file:  # checks if the given user and password are in the file
+            stored_users = [line.strip() for line in file.readlines()]
+        with open("password", "r") as file:
+            stored_passwords = [line.strip() for line in file.readlines()]
+
+        if encode_file(log_user) in stored_users and encode_file(log_password) in stored_passwords:  # looks for user and password
+            message("Success", "Login Successful!")
+            entry3.delete(0, tk.END)
+            entry4.delete(0, tk.END)
+        else:
+            message("Error", "Wrong username or password")
     else:
         message("Error", "Both entries need to be filled out")
 
@@ -111,9 +90,9 @@ def handle_login_click():
         entry4.config(show="*")
 
 
-# calls the check functions to ensure existence of these files
-check_keyfile()
-check_file()
+#  checks files existence
+check_file("user")
+check_file("password")
 
 window = tk.Tk()  # Sign in screen
 window.geometry("500x500")
